@@ -54,7 +54,6 @@ typedef struct
 	struct list_head list;
 	/* TODO: DECLARE NECESSARY free VARIABLES */
 	char *address;
-	// int index;
 	int order;
 	int is_free;
 } page_t;
@@ -84,12 +83,15 @@ page_t g_pages[(1 << MAX_ORDER) / PAGE_SIZE];
 page_t split(page_t *block_alloc, page_t *block_buddy)
 {
 	int temp_order = block_alloc->order;
+
 	char *buddy_address = BUDDY_ADDR(block_alloc->address, (temp_order - 1));
 	block_buddy = &g_pages[ADDR_TO_PAGE(buddy_address)];
+
+	block_buddy->address = buddy_address;
 	block_buddy->order = temp_order - 1;
 	block_buddy->is_free = 1;
-	block_buddy->address = buddy_address;
 	list_add(&block_buddy->list, &free_area[temp_order - 1]);
+	
 	block_alloc->order--;
 	block_alloc->is_free = 1;
 	return *block_alloc;
