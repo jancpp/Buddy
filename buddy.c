@@ -54,6 +54,7 @@ typedef struct
 	struct list_head list;
 	/* TODO: DECLARE NECESSARY free VARIABLES */
 	char *address;
+	// int index;
 	int order;
 	int is_free;
 } page_t;
@@ -78,6 +79,22 @@ page_t g_pages[(1 << MAX_ORDER) / PAGE_SIZE];
  * Local Functions
  **************************************************************************/
 
+// Split the block, add new block to list of free blocks
+// and return pointer to one we'll use
+page_t split(page_t *block_alloc, page_t *block_buddy)
+{
+	int temp_order = block_alloc->order;
+	char *buddy_address = BUDDY_ADDR(block_alloc->address, (temp_order - 1));
+	block_buddy = &g_pages[ADDR_TO_PAGE(buddy_address)];
+	block_buddy->order = temp_order - 1;
+	block_buddy->is_free = 1;
+	block_buddy->address = buddy_address;
+	list_add(&block_buddy->list, &free_area[temp_order - 1]);
+	block_alloc->order--;
+	block_alloc->is_free = 1;
+	return *block_alloc;
+}
+
 /**
  * Initialize the buddy system
  */
@@ -89,8 +106,8 @@ void buddy_init()
 	{
 		/* TODO: INITIALIZE PAGE STRUCTUreRES */
 		g_pages[i].address = (char *)PAGE_TO_ADDR(i);
-		g_pages[i].order = -1;
-		g_pages[i].is_free = 0;
+		g_pages[i].order = MAX_ORDER;
+		g_pages[i].is_free = 1;
 		INIT_LIST_HEAD(&g_pages[i].list);
 	}
 
@@ -120,33 +137,47 @@ void buddy_init()
  */
 void *buddy_alloc(int size)
 {
-	/* TODO: IMPLEMENT THIS FUNCTION */
-	// 1. Ascertain the free-block order which can satisfy the requested size.
-	// The block order for size x is ceil ( log2 (x))
-	// Example: 60k ->
-	// block-order = ceil ( log2 (60k)) = ceil ( log2 (k x 2^5 x 2^10)) = order-16
+	// Size of a block we need
+	int block_order = ceil(log2(size));
 
-	// int order =  ( log2 (size));
+	// Find block
+	page_t *block_alloc = NULL;
+	page_t *block_buddy = NULL;
+	struct list_head *head;
 
-	// 2. Iterate over the free-lists; starting from the order calculated in the above step.
-	// 	If the free-list at the required order is not-empty, just remove the first page
-	// 	from that list and return it to caller to satisfy the request
+	// Find smallest free block
+	for (int i = block_order; i <= MAX_ORDER; i++)
+	{
+		list_for_each(head, &free_area[i])
+		{
+			block_alloc = list_entry(head, page_t, list);
+			if (block_alloc->is_free == 1)
+			{
+				// Found the block, remove from list of free blocks and use it
+				list_del(head);
+				break;
+			}
+		}
+	}
 
+	// Keep spliting block until we have a right size
+	if (block_alloc->is_free == 1)
+	{
+		while (block_alloc->order != block_order)
+		{
+			*block_alloc = split(block_alloc, block_buddy);
+		}
+	}
 
-	// 3. If the free-list at the required order is empty, find the first non-empty
-	// 	free-list with order > required-order. Lets say that such a list exists at order-k
-
-	// 4. Remove a page from the order-k list and repeatedly break the page and populate
-	// 	the respective free-lists until the page of required-order is obtained.
-	// 	Return that page to caller (It would be good to encase this functionality
-	// 	in a separate function e.g. split)
-
-	// 5. If a non-empty free-list is not found, this is an error
-
-
-	return NULL;
+	if (block_alloc == NULL)
+	{
+		return NULL;
+	}
+	else
+	{
+		return block_alloc->address;
+	}
 }
-
 /**
  * Free an allocated memory block.
  *
