@@ -78,14 +78,38 @@ page_t g_pages[(1 << MAX_ORDER) / PAGE_SIZE];
  * Local Functions
  **************************************************************************/
 
+// Merge blocks TODO
+// page_t merge()
+// {
+// 	return;
+// }
+
+void p() // prints all blocks TODO remove
+{
+
+	printf("\n=========================\n\n");
+	int i;
+	for (i = MAX_ORDER; i >= MIN_ORDER; i--)
+	{
+		struct list_head *pos;
+		printf("\n %d bytes >> ", (1 << i));
+		list_for_each(pos, &free_area[i])
+		{
+			page_t *temp = list_entry(pos, page_t, list);
+			printf(" %s (%p)    ", temp->is_free == 1 ? "FREE" : "ALLOC", temp->address);
+		}
+	}
+	printf("\n\n=========================\n");
+}
+
 // Split the block, add new block to list of free blocks
 // and return pointer to one we'll use
-page_t split(page_t *block_alloc, page_t *block_buddy)
+page_t split(page_t *block_to_alloc, page_t *block_buddy)
 {
-	int temp_order = block_alloc->order;
+	int temp_order = block_to_alloc->order;
 	temp_order--;
 
-	char *buddy_address = BUDDY_ADDR(block_alloc->address, (temp_order));
+	char *buddy_address = BUDDY_ADDR(block_to_alloc->address, (temp_order));
 	block_buddy = &g_pages[ADDR_TO_PAGE(buddy_address)];
 
 	block_buddy->address = buddy_address;
@@ -93,9 +117,9 @@ page_t split(page_t *block_alloc, page_t *block_buddy)
 	block_buddy->is_free = 1;
 	list_add(&block_buddy->list, &free_area[temp_order]);
 
-	block_alloc->order = temp_order;
-	block_alloc->is_free = 0;
-	return *block_alloc;
+	block_to_alloc->order = temp_order;
+	block_to_alloc->is_free = 0;
+	return *block_to_alloc;
 }
 
 /**
@@ -146,37 +170,40 @@ void *buddy_alloc(int size)
 	int block_order = ceil(log2(size));
 
 	// Find block
-	page_t *block_alloc = NULL;
+	page_t *block_to_alloc = NULL;
 	page_t *block_buddy = NULL;
-	struct list_head *head;
+	struct list_head *head = NULL;
 
 	for (int i = block_order; i <= MAX_ORDER; i++)
 	{
-		list_for_each(head, &free_area[i])
+		if (!list_empty(&free_area[i]))
 		{
-			block_alloc = list_entry(head, page_t, list);
-			if (block_alloc->is_free == 1)
-			{
-				list_del(head);
-				break;
-			}
+			head = free_area[i].next;
+			block_to_alloc = list_entry(head, page_t, list);
+			// if (block_to_alloc->is_free == 1)
+			// {
+			list_del(head);
+			// break;
+			// }
 		}
-		if (block_alloc != NULL)
-		{
-			break;
-		}
+		// if (block_to_alloc != NULL)
+		// {
+		// 	break;
+		// }
 	}
 
 	// Keep spliting block until we have a right size
-	if (block_alloc->is_free == 1)
+	if (block_to_alloc->is_free == 1)
 	{
-		while (block_alloc->order != block_order)
+		while (block_to_alloc->order != block_order)
 		{
-			*block_alloc = split(block_alloc, block_buddy);
+			*block_to_alloc = split(block_to_alloc, block_buddy);
 		}
 	}
+	block_to_alloc->order = block_order;
+	block_to_alloc->is_free = 0;
 
-	return block_alloc->address;
+	return block_to_alloc->address;
 }
 
 /**
@@ -191,6 +218,31 @@ void *buddy_alloc(int size)
 void buddy_free(void *addr)
 {
 	/* TODO: IMPLEMENT THIS FUNCTION */
+	page_t *block_to_free = &g_pages[ADDR_TO_PAGE(addr)];
+	char *buddy_address = (char *)BUDDY_ADDR(addr, block_to_free->order);
+
+	// page_t *block_buddy = &g_pages[ADDR_TO_PAGE(buddy_address)];
+	// printf("block_to_alloc:[order: %d, address: %p, is_free: %s]\n", (int)pow(2, block_to_free->order), block_to_free->address, block_to_free->is_free == 1 ? "FREE" : "ALLOC");
+	// printf("block_buddy:[order: %d, address: %p, is_free: %s]\n", (int)pow(2, block_buddy->order), block_buddy->address, block_buddy->is_free == 1 ? "FREE" : "ALLOC");
+
+	struct list_head *pos;
+
+	// Find buddy block in the list
+	for (int i = MIN_ORDER; i <= MAX_ORDER; i++)
+	{
+		list_for_each(pos, &free_area[i])
+		{
+			page_t *temp = list_entry(pos, page_t, list);
+			if (buddy_address == temp->address)
+			{
+				// Found buddy block in list, merge
+				printf("FOUND buddy, can merge ##########\n");
+				// Keep merging if needed
+				// Set is_free = 1;
+				// block = merge(); TODO
+			}
+		}
+	}
 }
 
 /**
