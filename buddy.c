@@ -79,10 +79,24 @@ page_t g_pages[(1 << MAX_ORDER) / PAGE_SIZE];
  **************************************************************************/
 
 // Merge blocks TODO
-// page_t merge()
-// {
-// 	return;
-// }
+ void merge(page_t *block, page_t *buddy)
+{
+	list_del(&buddy->list);
+	list_del(&block->list);
+	if(block->address < buddy->address)
+	{
+		buddy = NULL;
+	}
+	else
+	{
+		block = buddy;
+		buddy = NULL;
+	}
+	if(block->order < MAX_ORDER)
+	{
+		block->order++;
+	}
+}
 
 void p() // prints all blocks TODO remove
 {
@@ -221,28 +235,43 @@ void buddy_free(void *addr)
 	page_t *block_to_free = &g_pages[ADDR_TO_PAGE(addr)];
 	char *buddy_address = (char *)BUDDY_ADDR(addr, block_to_free->order);
 
-	// page_t *block_buddy = &g_pages[ADDR_TO_PAGE(buddy_address)];
+
 	// printf("block_to_alloc:[order: %d, address: %p, is_free: %s]\n", (int)pow(2, block_to_free->order), block_to_free->address, block_to_free->is_free == 1 ? "FREE" : "ALLOC");
 	// printf("block_buddy:[order: %d, address: %p, is_free: %s]\n", (int)pow(2, block_buddy->order), block_buddy->address, block_buddy->is_free == 1 ? "FREE" : "ALLOC");
 
 	struct list_head *pos;
 
+	int i = block_to_free->order;
 	// Find buddy block in the list
-	for (int i = MIN_ORDER; i <= MAX_ORDER; i++)
+	for (; i < MAX_ORDER; i++)
 	{
+		int freed = 0;
+		page_t *block_buddy = &g_pages[ADDR_TO_PAGE(BUDDY_ADDR(addr,i))];
 		list_for_each(pos, &free_area[i])
 		{
 			page_t *temp = list_entry(pos, page_t, list);
-			if (buddy_address == temp->address)
+			if (block_buddy == temp)
 			{
 				// Found buddy block in list, merge
-				printf("FOUND buddy, can merge ##########\n");
+				//printf("FOUND buddy, can merge ##########\n");
 				// Keep merging if needed
 				// Set is_free = 1;
-				// block = merge(); TODO
+				freed = 1;
+				//merge(block_to_free, block_buddy); //TODO
 			}
 		}
+		if(freed != 1)
+		{
+			break;
+		}
+		list_del(&(block_buddy->list));
+		if(block_buddy < block_to_free)
+		{
+			block_to_free = block_buddy;
+		}
 	}
+	block_to_free->order = i;
+	list_add(&(block_to_free->list ), &free_area[i]);
 }
 
 /**
