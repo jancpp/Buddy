@@ -196,7 +196,7 @@ void *buddy_alloc(int size)
 			// if (block_to_alloc->is_free == 1)
 			// {
 			list_del(head);
-			// break;
+			break;
 			// }
 		}
 		// if (block_to_alloc != NULL)
@@ -206,6 +206,10 @@ void *buddy_alloc(int size)
 	}
 
 	// Keep spliting block until we have a right size
+	if(block_to_alloc == NULL)
+	{
+		return NULL;
+	}
 	if (block_to_alloc->is_free == 1)
 	{
 		while (block_to_alloc->order != block_order)
@@ -230,7 +234,6 @@ void *buddy_alloc(int size)
  */
 void buddy_free(void *addr)
 {
-
 	/* TODO: IMPLEMENT THIS FUNCTION */
 	page_t *block_to_free = &g_pages[ADDR_TO_PAGE(addr)];
 	block_to_free->is_free = 1;
