@@ -187,6 +187,9 @@ void *buddy_alloc(int size)
 	page_t *block_buddy = NULL;
 	struct list_head *head = NULL;
 
+	if (block_order < MIN_ORDER) {
+		block_order = MIN_ORDER;
+	}
 	for (int i = block_order; i <= MAX_ORDER; i++)
 	{
 		if (!list_empty(&free_area[i]))
@@ -219,7 +222,7 @@ void *buddy_alloc(int size)
 	}
 	block_to_alloc->order = block_order;
 	block_to_alloc->is_free = 0;
-
+	// p();
 	return block_to_alloc->address;
 }
 
@@ -253,6 +256,7 @@ void buddy_free(void *addr)
 	{
 		list_add(&block_to_free->list, &free_area[block_to_free->order]);
 	}
+	// p();
 }
 
 /**
