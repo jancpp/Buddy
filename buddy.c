@@ -78,41 +78,21 @@ page_t g_pages[(1 << MAX_ORDER) / PAGE_SIZE];
  * Local Functions
  **************************************************************************/
 
-// Merge blocks TODO
- page_t* merge(page_t *block, page_t *buddy)
+
+ page_t* merge(page_t *block, page_t *buddy_block)
 {
-	list_del(&buddy->list);
-	//list_del(&block->list);
-	//list_del(free_area[block->order].next);
-	if(block->address < buddy->address)
+	list_del(&buddy_block->list);
+	if(block->address > buddy_block->address)
 	{
-		buddy = NULL;
+		block = buddy_block;
+		buddy_block = NULL;
 	}
 	else
 	{
-		block = buddy;
-		buddy = NULL;
+		buddy_block = NULL;
 	}
 		block->order++;
 		return block;
-}
-
-void p() // prints all blocks TODO remove
-{
-
-	printf("\n=========================\n\n");
-	int i;
-	for (i = MAX_ORDER; i >= MIN_ORDER; i--)
-	{
-		struct list_head *pos;
-		printf("\n %d bytes >> ", (1 << i));
-		list_for_each(pos, &free_area[i])
-		{
-			page_t *temp = list_entry(pos, page_t, list);
-			printf(" %s (%p)    ", temp->is_free == 1 ? "FREE" : "ALLOC", temp->address);
-		}
-	}
-	printf("\n\n=========================\n");
 }
 
 // Split the block, add new block to list of free blocks
@@ -177,7 +157,6 @@ void buddy_init()
  */
 void *buddy_alloc(int size)
 {
-	/* TODO: IMPLEMENT THIS FUNCTION */
 
 	// Size of a block we need
 	int block_order = ceil(log2(size));
@@ -196,16 +175,9 @@ void *buddy_alloc(int size)
 		{
 			head = free_area[i].next;
 			block_to_alloc = list_entry(head, page_t, list);
-			// if (block_to_alloc->is_free == 1)
-			// {
 			list_del(head);
 			break;
-			// }
 		}
-		// if (block_to_alloc != NULL)
-		// {
-		// 	break;
-		// }
 	}
 
 	// Keep spliting block until we have a right size
@@ -222,7 +194,6 @@ void *buddy_alloc(int size)
 	}
 	block_to_alloc->order = block_order;
 	block_to_alloc->is_free = 0;
-	// p();
 	return block_to_alloc->address;
 }
 
@@ -237,7 +208,6 @@ void *buddy_alloc(int size)
  */
 void buddy_free(void *addr)
 {
-	/* TODO: IMPLEMENT THIS FUNCTION */
 	page_t *block_to_free = &g_pages[ADDR_TO_PAGE(addr)];
 	block_to_free->is_free = 1;
 	if(block_to_free->order >= MAX_ORDER)
@@ -256,7 +226,6 @@ void buddy_free(void *addr)
 	{
 		list_add(&block_to_free->list, &free_area[block_to_free->order]);
 	}
-	// p();
 }
 
 /**
